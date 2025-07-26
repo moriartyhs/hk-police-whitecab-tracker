@@ -1,0 +1,52 @@
+name: HK Police White Plate Car News Collector
+
+on:
+  schedule:
+    # 每天香港時間 0:00 (UTC 16:00) 執行
+    - cron: '0 16 * * *'
+  workflow_dispatch: # 允許手動觸發
+
+jobs:
+  collect-news:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests pandas
+
+    - name: Run news collector
+      env:
+        PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+      run: |
+        python news_collector.py
+
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add -A
+        if [ -n "$(git status --porcelain)" ]; then
+          git commit -m "Update news data - $(date +'%Y-%m-%d %H:%M:%S')"
+          git push
+        else
+          echo "No changes to commit"
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: news-reports
+        path: |
+          *.csv
+          *.md
+        retention-days: 30
